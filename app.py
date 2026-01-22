@@ -2,7 +2,8 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime
-import gspread # 💡 내부 처리를 위한 라이브러리
+import gspread
+from google.oauth2.service_account import Credentials
 
 # 1. 페이지 설정
 st.set_page_config(page_title="나의 보안 방명록", layout="centered")
@@ -28,14 +29,16 @@ else:
     st.title("📝 우리들의 방명록")
     
     try:
-        # 구글 시트 연결
+        # A. 데이터 읽기용 (Streamlit Connection)
         conn = st.connection("gsheets", type=GSheetsConnection)
         url = st.secrets["connections"]["gsheets"]["spreadsheet"]
         
-        # 💡 잔상 방지를 위한 "조용한" 시트 접근 함수
-        def get_silent_client():
-            # streamlit-gsheets의 내부 인증 정보를 그대로 재사용합니다.
-            return conn._instance.client if hasattr(conn._instance, 'client') else conn._instance
+        # B. 데이터 쓰기용 (gspread 직접 연결 - 잔상 방지 핵심)
+        def get_gspread_client():
+            # secrets.toml에 이미 설정된 인증 정보를 활용합니다.
+            scope = ["https://www.googleapis.com/auth/spreadsheets"]
+            creds = Credentials.from_service_account_info(st.secrets["connections"]["gsheets"], scopes=scope)
+            return gspread.authorize(creds)
 
         def get_data(sheet_name):
             try:
@@ -64,8 +67,8 @@ else:
             if submit:
                 if name and content and pw:
                     with st.spinner("등록 중..."):
-                        # 💡 conn.update를 쓰지 않고 gspread 명령어로 조용히 기록
-                        client = get_silent_client()
+                        # 💡 gspread를 사용하여 잔상 없이 조용히 추가
+                        client = get_gspread_client()
                         ss = client.open_by_url(url)
                         sheet = ss.worksheet("sheet1")
                         
@@ -95,14 +98,14 @@ else:
                                 stored_pw = str(row['password']).split('.')[0].strip()
                                 if str(del_pw).strip() == stored_pw:
                                     with st.spinner("삭제 중..."):
-                                        client = get_silent_client()
+                                        client = get_gspread_client()
                                         ss = client.open_by_url(url)
                                         
-                                        # 1. 백업 (deleted_logs 시트)
+                                        # 1. 백업
                                         log_sheet = ss.worksheet("deleted_logs")
                                         log_sheet.append_row(row.tolist())
                                         
-                                        # 2. 삭제 (sheet1 시트)
+                                        # 2. 삭제 (1행 헤더 제외 i+2)
                                         main_sheet = ss.worksheet("sheet1")
                                         main_sheet.delete_rows(i + 2)
                                         
