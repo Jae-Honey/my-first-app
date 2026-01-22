@@ -6,7 +6,7 @@ import gspread
 import time
 
 # 1. 페이지 설정
-st.set_page_config(page_title="나의 보안 방명록", layout="centered")
+st.set_page_config(page_title="정재헌월드", layout="centered")
 
 # 2. 로그인 세션 및 설정
 if 'login' not in st.session_state:
@@ -34,7 +34,7 @@ def get_gspread_client():
 # 💡 [팝업 함수 1] 방명록 등록 중
 @st.dialog("알림", width="small")
 def show_saving_dialog(name, content, pw):
-    st.write("🚀 **방명록을 올리는 중입니다!**")
+    st.write("🚀 **당신의 흔적을 남기는 중입니다!**")
     st.progress(50) # 진행 바 표시
     
     # 실제 저장 로직
@@ -50,7 +50,7 @@ def show_saving_dialog(name, content, pw):
 # 💡 [팝업 함수 2] 방명록 삭제 중
 @st.dialog("알림", width="small")
 def show_deleting_dialog(row_data, row_index):
-    st.write("🗑️ **방명록을 삭제하는 중입니다!**")
+    st.write("🗑️ **당신의 흔적을 치우는 중입니다!**")
     st.progress(50)
     
     # 실제 삭제 로직
@@ -65,32 +65,13 @@ def show_deleting_dialog(row_data, row_index):
 
 # --- 로그인 전 화면 ---
 if not st.session_state['login']:
-    st.title("🔒 관리자 인증")
-    password = st.text_input("접속 비밀번호", type="password")
-    if st.button("접속"):
-        if password == "1234":
-            st.session_state['login'] = True
-            st.rerun()
-        else:
-            st.error("비밀번호가 올바르지 않습니다.")
-
-# --- 로그인 후 메인 화면 ---
-else:
-    st.title("📝 우리들의 방명록")
-
-    # 데이터 로드
-    def load_data():
-        data = conn.read(worksheet="sheet1", ttl=0)
-        if data is not None and not data.empty:
-            return data.astype(str).replace(r'\.0$', '', regex=True)
-        return pd.DataFrame(columns=["name", "content", "date", "password"])
-
-    df = load_data()
-
-    # --- 방명록 작성 폼 (순서 변경: 이름 -> 메시지 -> 비밀번호) ---
-    with st.container(border=True):
-        st.subheader("새 글 남기기")
-        name = st.text_input("이름", placeholder="닉네임을 입력하세요")
+    st.markdown("<style>[data-testid='stSidebar'] { display: none; }</style>", unsafe_allow_html=True)
+    st.title("🔒 아무나 못 들어옵니다")
+    
+    password = st.text_input("비밀번호가 뭘까요? 힌트 정재헌", type="password")
+    
+    if st.button("비밀번호는 이거다!"):
+  름을 입력하세요")
         content = st.text_area("메시지", placeholder="따뜻한 한마디를 남겨주세요")
         pw = st.text_input("비밀번호", type="password", placeholder="삭제 시 필요합니다")
         
