@@ -87,7 +87,7 @@ else:
                         with st.expander("삭제"):
                             del_pw = st.text_input("비밀번호", type="password", key=f"pw_{i}")
                             if st.button("확인", key=f"btn_{i}"):
-                                if str(del_pw) == str(row['password']):
+                                if str(del_pw).strip() == str(row['password']).strip():
                                     new_df = df.drop(i)
                                     conn.update(worksheet="sheet1", data=new_df)
                                     st.success("삭제 중...")
