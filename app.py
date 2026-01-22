@@ -65,14 +65,19 @@ def show_deleting_dialog(row_data, row_index):
 
 # --- 로그인 전 화면 ---
 if not st.session_state['login']:
+    st.markdown("<style>[data-testid='stSidebar'] { display: none; }</style>", unsafe_allow_html=True)
     st.title("🔒 아무나 못 들어옴!")
+    
     password = st.text_input("비밀번호가 뭘까요? 힌트는 생일", type="password")
+    
     if st.button("접속"):
         if password == "0407":
             st.session_state['login'] = True
             st.rerun()
         else:
-            st.error("비밀번호가 올바르지 않습니다.")
+            st.error("틀렸다.")
+            st.image("https://www.ohmynews.com/NWS_Web/View/at_pg.aspx?CNTN_CD=A0000370364", 
+                     caption="출입 금지! 비밀번호를 확인하세요.", width=300)
 
 # --- 로그인 후 메인 화면 ---
 else:
