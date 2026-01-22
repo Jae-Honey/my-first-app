@@ -66,9 +66,9 @@ def show_deleting_dialog(row_data, row_index):
 # --- 로그인 전 화면 ---
 if not st.session_state['login']:
     st.title("🔒 아무나 못 들어옴!")
-    password = st.text_input("접속 비밀번호", type="password")
+    password = st.text_input("비밀번호가 뭘까요? 힌트는 생일", type="password")
     if st.button("접속"):
-        if password == "1234":
+        if password == "0407":
             st.session_state['login'] = True
             st.rerun()
         else:
