@@ -1,4 +1,4 @@
-import strealit as st
+import streamlit as st
 
 st.title("나의 첫 배포 웹사이트!")
 st.write("이 사이트는 컴퓨터를 꺼도 계속 유지됩니다.")
