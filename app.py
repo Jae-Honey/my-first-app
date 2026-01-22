@@ -72,9 +72,8 @@ else:
         st.divider()
         st.subheader("💬 방명록 목록")
 
-        # 최신순 출력 및 삭제 기능
         if not df.empty:
-            # 인덱스를 유지한 채 역순으로 정렬
+            # 인덱스를 유지한 채 역순으로 출력
             for i in reversed(range(len(df))):
                 row = df.iloc[i]
                 with st.container():
@@ -87,14 +86,24 @@ else:
                         with st.expander("삭제"):
                             del_pw = st.text_input("비밀번호", type="password", key=f"pw_{i}")
                             if st.button("확인", key=f"btn_{i}"):
-                                if str(del_pw).strip() == str(row['password']).strip():
+                                # --- 💡 핵심 수정 부분: 모든 형식을 문자로 통일하여 비교 ---
+                                # 시트의 저장된 값(숫자일 수 있음)을 정수형 문자로 변환
+                                try:
+                                    stored_pw = str(row['password']).split('.')[0].strip()
+                                except:
+                                    stored_pw = str(row['password']).strip()
+                                
+                                input_pw = str(del_pw).strip()
+
+                                if input_pw == stored_pw:
                                     new_df = df.drop(i)
                                     conn.update(worksheet="sheet1", data=new_df)
-                                    st.success("삭제 중...")
+                                    st.success("삭제 완료!")
                                     st.cache_data.clear()
                                     st.rerun()
                                 else:
-                                    st.error("불일치")
+                                    # 디버깅용: 실제 값이 어떻게 다른지 잠깐 보여줍니다.
+                                    st.error(f"불일치! (입력:{input_pw} / 저장:{stored_pw})")
         else:
             st.write("아직 작성된 글이 없습니다.")
 
