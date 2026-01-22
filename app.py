@@ -32,7 +32,14 @@ else:
         
         # 데이터 불러오기
         try:
+            # 1. 데이터 불러오기
             df = conn.read(worksheet="sheet1", ttl=0)
+
+            if df is not None and not df.empty:
+                df = df.astype(str)
+                # 소수점(.0)이 붙은 경우 제거하는 추가 처리
+            df = df.replace(r'\.0$', '', regex=True)
+        
         except:
             df = pd.DataFrame(columns=["name", "content", "date", "password"])
 
