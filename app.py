@@ -42,7 +42,12 @@ else:
         st.subheader("📝 방명록")
 
         # 데이터 불러오기 (워크시트 이름 확인 필수: sheet1)
-        df = conn.read(worksheet="sheet1", ttl=0)
+        # 기존 df = conn.read(...) 줄을 아래 내용으로 교체
+        try:
+            df = conn.read(worksheet="sheet1", ttl=0)
+        except Exception:
+            # 시트가 비어있거나 읽지 못할 경우를 대비해 빈 틀을 만듭니다.
+            df = pd.DataFrame(columns=["name", "content", "date"])
 
         # 방명록 입력 폼
         with st.form("guestbook_form", clear_on_submit=True):
