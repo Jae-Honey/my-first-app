@@ -77,7 +77,7 @@ if not st.session_state['login']:
         else:
             st.error("틀렸다.")
             st.image("https://ojsfile.ohmynews.com/down/images/1/animalpark_325244_2[541706].jpg", 
-                     caption="출입 금지! 비밀번호를 확인하세요.", width=300)
+                     caption="비밀번호를 다시 확인해라 구구구구", width=400)
 
 # --- 로그인 후 메인 화면 ---
 else:
