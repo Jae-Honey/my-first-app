@@ -7,6 +7,15 @@ import time
 # 1. 페이지 설정
 st.set_page_config(page_title="나의 보안 방명록", layout="centered")
 
+# 💡 [필살기] 잔상 방지용 CSS: 업데이트 시 튀어나오는 데이터프레임 출력을 강제로 숨김
+st.markdown("""
+    <style>
+    /* st.connection의 결과로 출력되는 div 요소를 숨깁니다 */
+    div[data-testid="stDataFrameResizer"] { display: none; }
+    div[data-testid="stTable"] { display: none; }
+    </style>
+    """, unsafe_allow_html=True)
+
 # 2. 로그인 세션 관리
 if 'login' not in st.session_state:
     st.session_state['login'] = False
@@ -56,19 +65,19 @@ else:
 
             if submit:
                 if name and content and pw:
-                    # 💡 status 기능을 사용하여 잔상을 방지하고 진행 상황을 보여줌
-                    with st.status("데이터를 시트에 기록하고 있습니다...", expanded=False) as status:
+                    with st.status("저장 중...", expanded=False) as status:
                         new_row = pd.DataFrame([{
                             "name": name, "content": content,
                             "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
                             "password": str(pw).strip()
                         }])
                         updated_df = pd.concat([df, new_row], ignore_index=True)
-                        # 변수에 할당하여 출력을 억제
-                        _ = conn.update(worksheet="sheet1", data=updated_df)
+                        
+                        # 💡 업데이트! (CSS가 결과 출력을 가려줄 것입니다)
+                        conn.update(worksheet="sheet1", data=updated_df)
                         st.cache_data.clear()
-                        status.update(label="등록 완료! 화면을 새로고침합니다.", state="complete")
-                    time.sleep(1) # 완료 메시지를 보여주기 위한 아주 짧은 대기
+                        status.update(label="저장 완료!", state="complete")
+                    time.sleep(0.3)
                     st.rerun()
                 else:
                     st.warning("모든 항목을 입력해주세요.")
@@ -90,25 +99,27 @@ else:
                             if st.button("확인", key=f"btn_{i}"):
                                 stored_pw = str(row['password']).split('.')[0].strip()
                                 if str(del_pw).strip() == stored_pw:
-                                    with st.status("데이터를 백업 및 삭제 중...", expanded=False) as status:
+                                    with st.status("삭제 중...", expanded=False) as status:
                                         deleted_row = df.iloc[[i]].copy()
                                         log_df = get_data("deleted_logs")
                                         updated_log = pd.concat([log_df, deleted_row], ignore_index=True)
-                                        _ = conn.update(worksheet="deleted_logs", data=updated_log)
                                         
+                                        # 💡 삭제 및 백업 (CSS가 가려줌)
+                                        conn.update(worksheet="deleted_logs", data=updated_log)
                                         new_df = df.drop(i)
-                                        _ = conn.update(worksheet="sheet1", data=new_df)
+                                        conn.update(worksheet="sheet1", data=new_df)
+                                        
                                         st.cache_data.clear()
                                         status.update(label="삭제 완료!", state="complete")
-                                    time.sleep(0.5)
+                                    time.sleep(0.3)
                                     st.rerun()
                                 else:
-                                    st.error("불일치")
+                                    st.error("비밀번호 불일치")
         else:
             st.write("첫 번째 방명록을 남겨보세요! ✨")
 
     except Exception as e:
-        st.error(f"오류가 발생했습니다: {e}")
+        st.error(f"오류 발생: {e}")
 
     if st.sidebar.button("로그아웃"):
         st.session_state['login'] = False
