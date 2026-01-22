@@ -76,12 +76,12 @@ if not st.session_state['login']:
             st.rerun()
         else:
             st.error("틀렸다.")
-            st.image("https://www.ohmynews.com/NWS_Web/View/at_pg.aspx?CNTN_CD=A0000370364", 
+            st.image("https://ojsfile.ohmynews.com/down/images/1/animalpark_325244_2[541706].jpg", 
                      caption="출입 금지! 비밀번호를 확인하세요.", width=300)
 
 # --- 로그인 후 메인 화면 ---
 else:
-    st.title("📝 우리들의 방명록")
+    st.title("📝 방명록")
 
     # 데이터 로드
     def load_data():
