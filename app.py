@@ -2,6 +2,7 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime
+import gspread # 💡 내부 처리를 위한 라이브러리
 
 # 1. 페이지 설정
 st.set_page_config(page_title="나의 보안 방명록", layout="centered")
@@ -31,7 +32,11 @@ else:
         conn = st.connection("gsheets", type=GSheetsConnection)
         url = st.secrets["connections"]["gsheets"]["spreadsheet"]
         
-        # 데이터 불러오기 함수
+        # 💡 잔상 방지를 위한 "조용한" 시트 접근 함수
+        def get_silent_client():
+            # streamlit-gsheets의 내부 인증 정보를 그대로 재사용합니다.
+            return conn._instance.client if hasattr(conn._instance, 'client') else conn._instance
+
         def get_data(sheet_name):
             try:
                 data = conn.read(worksheet=sheet_name, ttl=0)
@@ -59,18 +64,12 @@ else:
             if submit:
                 if name and content and pw:
                     with st.spinner("등록 중..."):
-                        # 💡 [해결책] 잔상을 차단하기 위해 gspread 엔진에 직접 조용히 접근
-                        # 라이브러리 버전에 따른 안전한 클라이언트 접근
-                        client = conn._instance.client if hasattr(conn, '_instance') else conn.client
+                        # 💡 conn.update를 쓰지 않고 gspread 명령어로 조용히 기록
+                        client = get_silent_client()
                         ss = client.open_by_url(url)
                         sheet = ss.worksheet("sheet1")
                         
-                        new_row = [
-                            name, 
-                            content, 
-                            datetime.now().strftime("%Y-%m-%d %H:%M"), 
-                            str(pw).strip()
-                        ]
+                        new_row = [name, content, datetime.now().strftime("%Y-%m-%d %H:%M"), str(pw).strip()]
                         sheet.append_row(new_row)
                         
                         st.cache_data.clear()
@@ -96,14 +95,14 @@ else:
                                 stored_pw = str(row['password']).split('.')[0].strip()
                                 if str(del_pw).strip() == stored_pw:
                                     with st.spinner("삭제 중..."):
-                                        client = conn._instance.client if hasattr(conn, '_instance') else conn.client
+                                        client = get_silent_client()
                                         ss = client.open_by_url(url)
                                         
                                         # 1. 백업 (deleted_logs 시트)
                                         log_sheet = ss.worksheet("deleted_logs")
                                         log_sheet.append_row(row.tolist())
                                         
-                                        # 2. 삭제 (sheet1 시트) - 1행 헤더 제외하므로 i+2
+                                        # 2. 삭제 (sheet1 시트)
                                         main_sheet = ss.worksheet("sheet1")
                                         main_sheet.delete_rows(i + 2)
                                         
