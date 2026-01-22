@@ -2,19 +2,9 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime
-import time
 
 # 1. 페이지 설정
 st.set_page_config(page_title="나의 보안 방명록", layout="centered")
-
-# 💡 [필살기] 잔상 방지용 CSS: 업데이트 시 튀어나오는 데이터프레임 출력을 강제로 숨김
-st.markdown("""
-    <style>
-    /* st.connection의 결과로 출력되는 div 요소를 숨깁니다 */
-    div[data-testid="stDataFrameResizer"] { display: none; }
-    div[data-testid="stTable"] { display: none; }
-    </style>
-    """, unsafe_allow_html=True)
 
 # 2. 로그인 세션 관리
 if 'login' not in st.session_state:
@@ -24,7 +14,7 @@ if 'login' not in st.session_state:
 if not st.session_state['login']:
     st.markdown("<style>[data-testid='stSidebar'] { display: none; }</style>", unsafe_allow_html=True)
     st.title("🔒 관리자 인증")
-    password = st.text_input("접속 비밀번호를 입력하세요", type="password")
+    password = st.text_input("접속 비밀번호", type="password")
     if st.button("접속"):
         if password == "1234":
             st.session_state['login'] = True
@@ -39,6 +29,7 @@ else:
     try:
         conn = st.connection("gsheets", type=GSheetsConnection)
         
+        # 데이터 불러오기 함수 (소수점 제거 포함)
         def get_data(sheet_name):
             try:
                 data = conn.read(worksheet=sheet_name, ttl=0)
@@ -65,19 +56,19 @@ else:
 
             if submit:
                 if name and content and pw:
-                    with st.status("저장 중...", expanded=False) as status:
-                        new_row = pd.DataFrame([{
-                            "name": name, "content": content,
-                            "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                            "password": str(pw).strip()
-                        }])
-                        updated_df = pd.concat([df, new_row], ignore_index=True)
+                    with st.spinner("등록 중..."):
+                        new_row = [
+                            name, 
+                            content, 
+                            datetime.now().strftime("%Y-%m-%d %H:%M"), 
+                            str(pw).strip()
+                        ]
+                        # 💡 [핵심] conn.update 대신 스프레드시트 엔진에 직접 조용히 추가
+                        client = conn._instance
+                        sheet = client.open_by_url(st.secrets["connections"]["gsheets"]["spreadsheet"]).worksheet("sheet1")
+                        sheet.append_row(new_row)
                         
-                        # 💡 업데이트! (CSS가 결과 출력을 가려줄 것입니다)
-                        conn.update(worksheet="sheet1", data=updated_df)
                         st.cache_data.clear()
-                        status.update(label="저장 완료!", state="complete")
-                    time.sleep(0.3)
                     st.rerun()
                 else:
                     st.warning("모든 항목을 입력해주세요.")
@@ -99,22 +90,23 @@ else:
                             if st.button("확인", key=f"btn_{i}"):
                                 stored_pw = str(row['password']).split('.')[0].strip()
                                 if str(del_pw).strip() == stored_pw:
-                                    with st.status("삭제 중...", expanded=False) as status:
-                                        deleted_row = df.iloc[[i]].copy()
-                                        log_df = get_data("deleted_logs")
-                                        updated_log = pd.concat([log_df, deleted_row], ignore_index=True)
+                                    with st.spinner("삭제 중..."):
+                                        # 💡 [핵심] 조용히 백업 및 삭제 처리
+                                        client = conn._instance
+                                        ss = client.open_by_url(st.secrets["connections"]["gsheets"]["spreadsheet"])
                                         
-                                        # 💡 삭제 및 백업 (CSS가 가려줌)
-                                        conn.update(worksheet="deleted_logs", data=updated_log)
-                                        new_df = df.drop(i)
-                                        conn.update(worksheet="sheet1", data=new_df)
+                                        # 1. 백업 (deleted_logs 시트)
+                                        log_sheet = ss.worksheet("deleted_logs")
+                                        log_sheet.append_row(row.tolist())
+                                        
+                                        # 2. 삭제 (sheet1 시트) - 인덱스는 1부터 시작하므로 i+2
+                                        main_sheet = ss.worksheet("sheet1")
+                                        main_sheet.delete_rows(i + 2)
                                         
                                         st.cache_data.clear()
-                                        status.update(label="삭제 완료!", state="complete")
-                                    time.sleep(0.3)
                                     st.rerun()
                                 else:
-                                    st.error("비밀번호 불일치")
+                                    st.error("불일치")
         else:
             st.write("첫 번째 방명록을 남겨보세요! ✨")
 
