@@ -36,7 +36,7 @@ else:
     
     # 구글 시트 연결
     try:
-        conn = st.connection("gsheets", type=GSheetsConnection)
+        conn = st.connection("gsheets", type=GSheetsConnection, connection_name="gsheets")
         
         st.divider()
         st.subheader("📝 방명록")
