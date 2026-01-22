@@ -2,7 +2,7 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime
-import gspread # 요구사항: requirements.txt에 gspread 추가 필수
+import gspread
 
 # 1. 페이지 설정
 st.set_page_config(page_title="나의 보안 방명록", layout="centered")
@@ -28,11 +28,27 @@ else:
     st.title("📝 우리들의 방명록")
     
     try:
-        # 데이터 읽기용 커넥션
+        # A. 데이터 읽기용 (Streamlit 공식 커넥션)
         conn = st.connection("gsheets", type=GSheetsConnection)
         url = st.secrets["connections"]["gsheets"]["spreadsheet"]
         
-        # 데이터 불러오기 함수
+        # B. 데이터 쓰기용 (gspread 직접 인증 - 잔상 방지 필살기)
+        def get_gspread_client():
+            # secrets.toml의 정보를 딕셔너리 형태로 직접 추출하여 인증합니다.
+            creds_info = {
+                "type": st.secrets["connections"]["gsheets"]["type"],
+                "project_id": st.secrets["connections"]["gsheets"]["project_id"],
+                "private_key_id": st.secrets["connections"]["gsheets"]["private_key_id"],
+                "private_key": st.secrets["connections"]["gsheets"]["private_key"],
+                "client_email": st.secrets["connections"]["gsheets"]["client_email"],
+                "client_id": st.secrets["connections"]["gsheets"]["client_id"],
+                "auth_uri": st.secrets["connections"]["gsheets"]["auth_uri"],
+                "token_uri": st.secrets["connections"]["gsheets"]["token_uri"],
+                "auth_provider_x509_cert_url": st.secrets["connections"]["gsheets"]["auth_provider_x509_cert_url"],
+                "client_x509_cert_url": st.secrets["connections"]["gsheets"]["client_x509_cert_url"],
+            }
+            return gspread.service_account_from_dict(creds_info)
+
         def get_data(sheet_name):
             try:
                 data = conn.read(worksheet=sheet_name, ttl=0)
@@ -59,10 +75,9 @@ else:
 
             if submit:
                 if name and content and pw:
-                    with st.spinner("잔상 없이 등록 중..."):
-                        # 💡 핵심: streamlit-gsheets 내부 인증 정보를 gspread에 연결
-                        # 이 방식은 추가 라이브러리 설치 없이 가장 안전하게 잔상을 제거합니다.
-                        gc = gspread.authorize(conn._instance.credentials)
+                    with st.spinner("잔상 없이 깨끗하게 등록 중..."):
+                        # 💡 gspread를 통한 다이렉트 업데이트 (Streamlit UI 간섭 없음)
+                        gc = get_gspread_client()
                         ss = gc.open_by_url(url)
                         sheet = ss.worksheet("sheet1")
                         
@@ -91,15 +106,15 @@ else:
                             if st.button("확인", key=f"btn_{i}"):
                                 stored_pw = str(row['password']).split('.')[0].strip()
                                 if str(del_pw).strip() == stored_pw:
-                                    with st.spinner("잔상 없이 삭제 중..."):
-                                        gc = gspread.authorize(conn._instance.credentials)
+                                    with st.spinner("잔상 없이 깨끗하게 삭제 중..."):
+                                        gc = get_gspread_client()
                                         ss = gc.open_by_url(url)
                                         
-                                        # 1. 백업 (deleted_logs 시트)
+                                        # 1. 백업
                                         log_sheet = ss.worksheet("deleted_logs")
                                         log_sheet.append_row(row.tolist())
                                         
-                                        # 2. 삭제 (sheet1 시트, 헤더 포함 i+2행)
+                                        # 2. 삭제 (1행 헤더 제외 i+2행)
                                         main_sheet = ss.worksheet("sheet1")
                                         main_sheet.delete_rows(i + 2)
                                         
