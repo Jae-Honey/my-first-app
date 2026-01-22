@@ -28,8 +28,9 @@ else:
     
     try:
         conn = st.connection("gsheets", type=GSheetsConnection)
+        spreadsheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
         
-        # 데이터 불러오기 함수 (소수점 제거 포함)
+        # 데이터 불러오기 함수
         def get_data(sheet_name):
             try:
                 data = conn.read(worksheet=sheet_name, ttl=0)
@@ -57,15 +58,17 @@ else:
             if submit:
                 if name and content and pw:
                     with st.spinner("등록 중..."):
+                        # 💡 conn.client를 사용하여 잔상 없이 데이터 추가
+                        client = conn.client
+                        ss = client.open_by_url(spreadsheet_url)
+                        sheet = ss.worksheet("sheet1")
+                        
                         new_row = [
                             name, 
                             content, 
                             datetime.now().strftime("%Y-%m-%d %H:%M"), 
                             str(pw).strip()
                         ]
-                        # 💡 [핵심] conn.update 대신 스프레드시트 엔진에 직접 조용히 추가
-                        client = conn._instance
-                        sheet = client.open_by_url(st.secrets["connections"]["gsheets"]["spreadsheet"]).worksheet("sheet1")
                         sheet.append_row(new_row)
                         
                         st.cache_data.clear()
@@ -91,15 +94,15 @@ else:
                                 stored_pw = str(row['password']).split('.')[0].strip()
                                 if str(del_pw).strip() == stored_pw:
                                     with st.spinner("삭제 중..."):
-                                        # 💡 [핵심] 조용히 백업 및 삭제 처리
-                                        client = conn._instance
-                                        ss = client.open_by_url(st.secrets["connections"]["gsheets"]["spreadsheet"])
+                                        # 💡 conn.client를 사용하여 잔상 없이 백업 및 삭제
+                                        client = conn.client
+                                        ss = client.open_by_url(spreadsheet_url)
                                         
-                                        # 1. 백업 (deleted_logs 시트)
+                                        # 1. 백업
                                         log_sheet = ss.worksheet("deleted_logs")
                                         log_sheet.append_row(row.tolist())
                                         
-                                        # 2. 삭제 (sheet1 시트) - 인덱스는 1부터 시작하므로 i+2
+                                        # 2. 삭제 (시트 행 번호는 i+2)
                                         main_sheet = ss.worksheet("sheet1")
                                         main_sheet.delete_rows(i + 2)
                                         
