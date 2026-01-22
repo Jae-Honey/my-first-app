@@ -25,7 +25,7 @@ with st.form("guestbook"):
         # 기존 데이터에 합치기
         updated_df = pd.concat([data, new_row], ignore_index=True)
         # 구글 시트에 다시 쓰기
-        conn.update(worksheet="ｓheet1", data=updated_df)
+        conn.update(worksheet="sheet1", data=updated_df)
         st.success("글이 저장되었습니다!")
         st.rerun()
 
