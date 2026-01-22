@@ -3,86 +3,65 @@ from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime
 
-# 1. 페이지 설정 (로그인 전에는 사이드바 숨김)
-st.set_page_config(page_title="나의 웹 서비스", initial_sidebar_state="collapsed")
+# (로그인 로직 이후 메인 화면 부분)
+try:
+    conn = st.connection("gsheets", type=GSheetsConnection)
+    df = conn.read(worksheet="sheet1", ttl=0)
 
-# 2. 로그인 세션 관리
-if 'login' not in st.session_state:
-    st.session_state['login'] = False
+    # 데이터프레임이 비어있을 경우 초기화
+    if df is None or df.empty:
+        df = pd.DataFrame(columns=["name", "content", "date", "password"])
 
-# --- 로그인 전 화면 ---
-if not st.session_state['login']:
-    # CSS로 사이드바 완전히 숨기기
-    st.markdown("""
-        <style>
-            [data-testid="stSidebar"] { display: none; }
-        </style>
-    """, unsafe_allow_html=True)
-    
-    st.title("🔒 Access Required")
-    password = st.text_input("비밀번호를 입력하세요", type="password")
-    
-    if st.button("접속"):
-        if password == "1234": # 비밀번호를 원하는 대로 수정하세요
-            st.session_state['login'] = True
-            st.rerun()
-        else:
-            st.error("비밀번호가 올바르지 않습니다.")
-
-# --- 로그인 후 메인 화면 ---
-else:
-    st.title("🔓 환영합니다!")
-    st.write("왼쪽 사이드바에서 메뉴를 확인하세요.")
-    
-    # 구글 시트 연결
-    try:
-        conn = st.connection("gsheets", type=GSheetsConnection)
-        
-        st.divider()
-        st.subheader("📝 방명록")
-
-        # 데이터 불러오기 (워크시트 이름 확인 필수: sheet1)
-        # 기존 df = conn.read(...) 줄을 아래 내용으로 교체
-        try:
-            df = conn.read(worksheet="sheet1", ttl=0)
-        except Exception:
-            # 시트가 비어있거나 읽지 못할 경우를 대비해 빈 틀을 만듭니다.
-            df = pd.DataFrame(columns=["name", "content", "date"])
-
-        # 방명록 입력 폼
-        with st.form("guestbook_form", clear_on_submit=True):
+    st.subheader("📝 방명록 남기기")
+    with st.form("guestbook_form", clear_on_submit=True):
+        col1, col2 = st.columns(2)
+        with col1:
             name = st.text_input("닉네임")
-            content = st.text_area("메시지")
-            submit = st.form_submit_button("남기기")
+        with col2:
+            pw = st.text_input("삭제 비밀번호", type="password", help="글을 지울 때 필요해요!")
+        
+        content = st.text_area("메시지")
+        submit = st.form_submit_button("남기기")
 
-            if submit:
-                if name and content:
-                    # 새 데이터 생성
-                    new_data = pd.DataFrame([{
-                        "name": name,
-                        "content": content,
-                        "date": datetime.now().strftime("%Y-%m-%d %H:%M")
-                    }])
-                    # 기존 데이터에 합치기
-                    updated_df = pd.concat([df, new_data], ignore_index=True)
-                    # 구글 시트 업데이트
-                    conn.update(worksheet="sheet1", data=updated_df)
-                    st.success("방명록이 저장되었습니다!")
-                    st.cache_data.clear()
-                    st.rerun()
-                else:
-                    st.warning("이름과 내용을 모두 입력해주세요.")
+        if submit:
+            if name and content and pw:
+                new_data = pd.DataFrame([{
+                    "name": name,
+                    "content": content,
+                    "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "password": str(pw) # 비밀번호 저장
+                }])
+                updated_df = pd.concat([df, new_data], ignore_index=True)
+                conn.update(worksheet="sheet1", data=updated_df)
+                st.success("방명록이 저장되었습니다!")
+                st.cache_data.clear()
+                st.rerun()
+            else:
+                st.warning("모든 칸을 채워주세요.")
 
-        # 방명록 목록 출력 (최신순)
-        if not df.empty:
-            for i, row in df.iloc[::-1].iterrows():
+    st.divider()
+    st.subheader("💬 방명록 목록")
+
+    # 최신순으로 출력
+    for i, row in df.iloc[::-1].iterrows():
+        with st.container():
+            col_text, col_del = st.columns([0.8, 0.2])
+            
+            with col_text:
                 st.write(f"**{row['name']}** ({row['date']})")
                 st.info(row['content'])
-        
-    except Exception as e:
-        st.error(f"데이터베이스 연결 중 오류가 발생했습니다: {e}")
-
-    # 로그아웃 버튼
-    if st.sidebar.button("로그아웃"):
-        st.session_state['login'] = False
-        st.rerun()
+            
+            with col_del:
+                # 각 글마다 고유한 팝업창(expander) 생성
+                with st.expander("삭제"):
+                    del_pw = st.text_input("비밀번호", type="password", key=f"del_{i}")
+                    if st.button("확인", key=f"btn_{i}"):
+                        if str(del_pw) == str(row['password']):
+                            # 해당 행 제외하고 다시 저장
+                            new_df = df.drop(i)
+                            conn.update(worksheet="sheet1", data=new_df)
+                            st.success("삭제되었습니다!")
+                            st.cache_data.clear()
+                            st.rerun()
+                        else:
+                            st.error("불일치")
