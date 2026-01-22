@@ -1,37 +1,24 @@
 import streamlit as st
+import datetime
 
-# 1. 페이지 설정 (사이드바 기본 상태 결정)
-st.set_page_config(initial_sidebar_state="collapsed")
+st.divider() # 구분선
+st.subheader("📝 방명록")
 
-# 로그인 세션 상태 초기화
-if 'login' not in st.session_state:
-    st.session_state['login'] = False
+# 댓글을 저장할 리스트 (임시 저장소)
+if "guestbook" not in st.session_state:
+    st.session_state.guestbook = []
 
-# 로그인 전일 때 스타일 (사이드바를 아예 안 보이게 가림)
-if not st.session_state['login']:
-    st.markdown("""
-        <style>
-            [data-testid="stSidebar"] {
-                display: none;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-    
-    # 로그인 화면 출력
-    st.title("🔒 보호된 페이지")
-    password = st.text_input("비밀번호를 입력하세요", type="password")
-    if st.button("접속"):
-        if password == "1234":
-            st.session_state['login'] = True
-            st.rerun()
-        else:
-            st.error("비밀번호가 틀렸습니다.")
+# 입력창
+with st.form("guestbook_form", clear_on_submit=True):
+    name = st.text_input("닉네임")
+    content = st.text_area("내용")
+    submit = st.form_submit_button("남기기")
 
-# 로그인 후 보여줄 메인 화면
-else:
-    st.title("🔓 환영합니다! 이제 메뉴가 보입니다.")
-    st.write("왼쪽 사이드바를 확인해 보세요.")
-    
-    if st.button("로그아웃"):
-        st.session_state['login'] = False
-        st.rerun()
+    if submit and name and content:
+        now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+        st.session_state.guestbook.append({"name": name, "content": content, "time": now})
+
+# 저장된 댓글 출력
+for entry in reversed(st.session_state.guestbook):
+    st.write(f"**{entry['name']}** ({entry['time']})")
+    st.info(entry['content'])
