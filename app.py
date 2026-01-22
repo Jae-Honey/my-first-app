@@ -94,8 +94,8 @@ else:
 
     # --- 방명록 작성 폼 (순서 변경: 이름 -> 메시지 -> 비밀번호) ---
     with st.container(border=True):
-        st.subheader("새 글 남기기")
-        name = st.text_input("이름", placeholder="닉네임을 입력하세요")
+        st.subheader("흔적 남기")
+        name = st.text_input("이름", placeholder="이름을 입력하세요")
         content = st.text_area("메시지", placeholder="따뜻한 한마디를 남겨주세요")
         pw = st.text_input("비밀번호", type="password", placeholder="삭제 시 필요합니다")
         
@@ -103,7 +103,7 @@ else:
             if name and content and pw:
                 show_saving_dialog(name, content, pw) # 팝업 호출
             else:
-                st.warning("모든 항목을 입력해주세요.")
+                st.warning("하나도 빠짐없이 입력해라!")
 
     st.divider()
 
