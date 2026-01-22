@@ -1,24 +1,32 @@
 import streamlit as st
-import datetime
+from streamlit_gsheets import GSheetsConnection
+import pandas as pd
+from datetime import datetime
 
-st.divider() # 구분선
-st.subheader("📝 방명록")
+# 구글 시트 연결 (설정은 Streamlit Cloud에서 할 예정)
+conn = st.connection("gsheets", type=GSheetsConnection)
 
-# 댓글을 저장할 리스트 (임시 저장소)
-if "guestbook" not in st.session_state:
-    st.session_state.guestbook = []
+st.title("📖 영구 저장 방명록")
 
-# 입력창
-with st.form("guestbook_form", clear_on_submit=True):
+# 1. 기존 댓글 읽어오기
+data = conn.read(worksheet="Sheet1")
+
+# 2. 입력 창
+with st.form("guestbook"):
     name = st.text_input("닉네임")
     content = st.text_area("내용")
-    submit = st.form_submit_button("남기기")
+    if st.form_submit_button("남기기"):
+        # 새 데이터 한 줄 만들기
+        new_row = pd.DataFrame([{"name": name, "content": content, "date": datetime.now().strftime("%Y-%m-%d %H:%M")}])
+        # 기존 데이터에 합치기
+        updated_df = pd.concat([data, new_row], ignore_index=True)
+        # 구글 시트에 다시 쓰기
+        conn.update(worksheet="Sheet1", data=updated_df)
+        st.success("글이 저장되었습니다!")
+        st.rerun()
 
-    if submit and name and content:
-        now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
-        st.session_state.guestbook.append({"name": name, "content": content, "time": now})
-
-# 저장된 댓글 출력
-for entry in reversed(st.session_state.guestbook):
-    st.write(f"**{entry['name']}** ({entry['time']})")
-    st.info(entry['content'])
+# 3. 화면에 출력
+st.divider()
+for i, row in data.iterrows():
+    st.write(f"**{row['name']}** ({row['date']})")
+    st.info(row['content'])
