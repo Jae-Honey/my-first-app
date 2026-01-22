@@ -9,7 +9,11 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 st.title("📖 영구 저장 방명록")
 
 # 1. 기존 댓글 읽어오기
-data = conn.read(worksheet="sheet1")
+try:
+    data = conn.read(worksheet="sheet1")
+except Exception as e:
+    # 만약 시트가 비어있어서 에러가 난다면, 빈 틀을 만듭니다.
+    data = pd.DataFrame(columns=["name", "content", "date"])
 
 # 2. 입력 창
 with st.form("guestbook"):
