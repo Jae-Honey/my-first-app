@@ -9,7 +9,7 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 st.title("📖 영구 저장 방명록")
 
 # 1. 기존 댓글 읽어오기
-data = conn.read(worksheet="깃허브 공부")
+data = conn.read(worksheet="sheet1")
 
 # 2. 입력 창
 with st.form("guestbook"):
