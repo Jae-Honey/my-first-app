@@ -27,8 +27,9 @@ else:
     st.title("📝 우리들의 방명록")
     
     try:
+        # 구글 시트 연결
         conn = st.connection("gsheets", type=GSheetsConnection)
-        spreadsheet_url = st.secrets["connections"]["gsheets"]["spreadsheet"]
+        url = st.secrets["connections"]["gsheets"]["spreadsheet"]
         
         # 데이터 불러오기 함수
         def get_data(sheet_name):
@@ -58,9 +59,10 @@ else:
             if submit:
                 if name and content and pw:
                     with st.spinner("등록 중..."):
-                        # 💡 conn.client를 사용하여 잔상 없이 데이터 추가
-                        client = conn.client
-                        ss = client.open_by_url(spreadsheet_url)
+                        # 💡 [해결책] 잔상을 차단하기 위해 gspread 엔진에 직접 조용히 접근
+                        # 라이브러리 버전에 따른 안전한 클라이언트 접근
+                        client = conn._instance.client if hasattr(conn, '_instance') else conn.client
+                        ss = client.open_by_url(url)
                         sheet = ss.worksheet("sheet1")
                         
                         new_row = [
@@ -94,15 +96,14 @@ else:
                                 stored_pw = str(row['password']).split('.')[0].strip()
                                 if str(del_pw).strip() == stored_pw:
                                     with st.spinner("삭제 중..."):
-                                        # 💡 conn.client를 사용하여 잔상 없이 백업 및 삭제
-                                        client = conn.client
-                                        ss = client.open_by_url(spreadsheet_url)
+                                        client = conn._instance.client if hasattr(conn, '_instance') else conn.client
+                                        ss = client.open_by_url(url)
                                         
-                                        # 1. 백업
+                                        # 1. 백업 (deleted_logs 시트)
                                         log_sheet = ss.worksheet("deleted_logs")
                                         log_sheet.append_row(row.tolist())
                                         
-                                        # 2. 삭제 (시트 행 번호는 i+2)
+                                        # 2. 삭제 (sheet1 시트) - 1행 헤더 제외하므로 i+2
                                         main_sheet = ss.worksheet("sheet1")
                                         main_sheet.delete_rows(i + 2)
                                         
