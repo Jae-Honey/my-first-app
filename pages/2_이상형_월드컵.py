@@ -1,9 +1,29 @@
 import streamlit as st
 import random
+import time
 
+# 1. 페이지 기본 설정
 st.set_page_config(page_title="음식 8강 월드컵", layout="centered")
 
-# 1. 초기 데이터 설정 (8개의 음식)
+# 2. 이미지 크기 고정 및 디자인 CSS
+st.markdown("""
+    <style>
+    /* 이미지 높이 고정 및 비율 유지 */
+    [data-testid="stImage"] img {
+        height: 300px !important;
+        object-fit: cover !important;
+        border-radius: 15px;
+    }
+    /* 버튼 중앙 정렬 및 여백 */
+    .stButton button {
+        width: 100%;
+        border-radius: 10px;
+        font-weight: bold;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# 3. 데이터 초기화 (세션 상태)
 if 'candidates' not in st.session_state:
     st.session_state.candidates = [
         {"name": "바삭한 치킨", "img": "https://images.unsplash.com/photo-1562967914-608f82629710?w=500"},
@@ -19,42 +39,48 @@ if 'candidates' not in st.session_state:
     st.session_state.winners = []
     st.session_state.match_idx = 0
     st.session_state.round_name = "8강"
+    st.session_state.total_rounds = 7 # 8강일 때 총 경기 수는 7경기 (4+2+1)
+    st.session_state.current_game_count = 0
 
-# 상태 변수 단순화
-candidates = st.session_state.candidates
-match_idx = st.session_state.match_idx
-
+# 상단 제목
 st.title("🍴 음식 이상형 월드컵")
-st.divider()
 
-# 2. 게임 진행 로직
-if len(candidates) > 1:
-    st.subheader(f"🔥 {st.session_state.round_name} 진행 중 ({match_idx//2 + 1} / {len(candidates)//2})")
-    
+# 4. 게임 진행 섹션
+if len(st.session_state.candidates) > 1:
+    # 진행도 표시 (Progress Bar)
+    progress = st.session_state.current_game_count / st.session_state.total_rounds
+    st.progress(progress)
+    st.write(f"**진행 상황: {st.session_state.round_name} ({st.session_state.match_idx//2 + 1} / {len(st.session_state.candidates)//2})**")
+    st.divider()
+
     col1, col2 = st.columns(2)
     
-    # IndexError 방지를 위한 안전장치
-    if match_idx < len(candidates):
+    match_idx = st.session_state.match_idx
+    candidates = st.session_state.candidates
+
+    # 대진표 안전 확인
+    if match_idx + 1 < len(candidates):
         # 왼쪽 후보
         with col1:
             c1 = candidates[match_idx]
-            st.image(c1['img'], use_container_width=True, caption=c1['name'])
-            if st.button(f"{c1['name']} 선택", key=f"btn_{match_idx}", use_container_width=True):
+            st.image(c1['img'], use_container_width=True)
+            if st.button(f"선택: {c1['name']}", key=f"c1_{match_idx}"):
                 st.session_state.winners.append(c1)
                 st.session_state.match_idx += 2
+                st.session_state.current_game_count += 1
                 st.rerun()
 
         # 오른쪽 후보
         with col2:
-            if match_idx + 1 < len(candidates):
-                c2 = candidates[match_idx + 1]
-                st.image(c2['img'], use_container_width=True, caption=c2['name'])
-                if st.button(f"{c2['name']} 선택", key=f"btn_{match_idx+1}", use_container_width=True):
-                    st.session_state.winners.append(c2)
-                    st.session_state.match_idx += 2
-                    st.rerun()
+            c2 = candidates[match_idx + 1]
+            st.image(c2['img'], use_container_width=True)
+            if st.button(f"선택: {c2['name']}", key=f"c2_{match_idx}"):
+                st.session_state.winners.append(c2)
+                st.session_state.match_idx += 2
+                st.session_state.current_game_count += 1
+                st.rerun()
 
-    # 모든 대진이 끝났을 때 다음 라운드 처리
+    # 다음 라운드 진출 로직
     if st.session_state.match_idx >= len(candidates):
         st.session_state.candidates = st.session_state.winners
         st.session_state.winners = []
@@ -67,16 +93,17 @@ if len(candidates) > 1:
             st.session_state.round_name = "결승전"
         st.rerun()
 
-# 3. 최종 우승자 발표
+# 5. 최종 결과 섹션
 else:
     st.balloons()
-    st.success("🎉 월드컵이 종료되었습니다!")
-    st.header(f"🏆 당신의 최종 선택: {candidates[0]['name']}!")
-    st.image(candidates[0]['img'], use_container_width=True)
+    st.success("🎉 모든 대결이 끝났습니다!")
+    st.header(f"🏆 당신이 선택한 최고의 음식: {st.session_state.candidates[0]['name']}")
+    st.image(st.session_state.candidates[0]['img'], use_container_width=True)
     
-    if st.button("처음부터 다시 하기", use_container_width=True):
-        # 모든 세션 상태 초기화
-        for key in ['candidates', 'winners', 'match_idx', 'round_name']:
+    st.divider()
+    if st.button("다시 시작하기"):
+        # 초기화 시 모든 세션 데이터 삭제
+        for key in ['candidates', 'winners', 'match_idx', 'round_name', 'current_game_count']:
             if key in st.session_state:
                 del st.session_state[key]
         st.rerun()
